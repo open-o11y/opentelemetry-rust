@@ -35,7 +35,7 @@
 //! ```
 //! # #[cfg(feature = "trace")]
 //! # {
-//! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider}};
+//! use opentelemetry::{global, trace::{Span, Tracer, TracerProvider, tracer_config}};
 //!
 //! fn my_library_function() {
 //!     // Use the global tracer provider to get access to the user-specified
@@ -43,7 +43,8 @@
 //!     let tracer_provider = global::tracer_provider();
 //!
 //!     // Get a tracer for this library
-//!     let tracer = tracer_provider.get_tracer("my_name", Some(env!("CARGO_PKG_VERSION")));
+//!     let config = tracer_config().with_name("my_name").with_version(env!("CARGO_PKG_VERSION"));
+//!     let tracer = tracer_provider.get_tracer(&config);
 //!
 //!     // Create spans
 //!     let mut span = tracer.start("doing_work");
@@ -187,7 +188,7 @@ pub use self::{
     id_generator::IdGenerator,
     link::Link,
     noop::{NoopSpan, NoopSpanExporter, NoopTracer, NoopTracerProvider},
-    provider::TracerProvider,
+    provider::{tracer_config, TracerConfig, TracerProvider},
     span::{Span, SpanKind, StatusCode},
     span_context::{
         SpanContext, SpanId, TraceId, TraceState, TRACE_FLAG_DEBUG, TRACE_FLAG_DEFERRED,

@@ -333,8 +333,9 @@ mod tests {
         },
         testing::trace::TestSpan,
         trace::{
-            Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt, TraceId,
-            TraceState, Tracer, TracerProvider, TRACE_FLAG_NOT_SAMPLED, TRACE_FLAG_SAMPLED,
+            tracer_config, Link, Span, SpanBuilder, SpanContext, SpanId, SpanKind, TraceContextExt,
+            TraceId, TraceState, Tracer, TracerProvider, TRACE_FLAG_NOT_SAMPLED,
+            TRACE_FLAG_SAMPLED,
         },
         Context, KeyValue,
     };
@@ -374,7 +375,8 @@ mod tests {
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();
-        let tracer = tracer_provider.get_tracer("test", None);
+        let t_config = tracer_config().with_name("test");
+        let tracer = tracer_provider.get_tracer(&t_config);
         let trace_state = TraceState::from_key_value(vec![("foo", "bar")]).unwrap();
         let span_builder = SpanBuilder {
             parent_context: Context::new().with_span(TestSpan(SpanContext::new(
@@ -403,7 +405,8 @@ mod tests {
             .build();
 
         let context = Context::current_with_span(TestSpan(SpanContext::empty_context()));
-        let tracer = tracer_provider.get_tracer("test", None);
+        let t_config = tracer_config().with_name("test");
+        let tracer = tracer_provider.get_tracer(&t_config);
         let span = tracer.start_with_context("must_not_be_sampled", context);
 
         assert!(!span.span_context().is_sampled());
@@ -416,7 +419,8 @@ mod tests {
         let tracer_provider = sdk::trace::TracerProvider::builder()
             .with_config(config)
             .build();
-        let tracer = tracer_provider.get_tracer("test", None);
+        let t_config = tracer_config().with_name("test");
+        let tracer = tracer_provider.get_tracer(&t_config);
 
         let _attached = Context::current_with_span(TestSpan(SpanContext::empty_context())).attach();
         let span = tracer.span_builder("must_not_be_sampled").start(&tracer);

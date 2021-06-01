@@ -1,6 +1,10 @@
 use crate::global::handle_error;
 use crate::trace::{NoopTracerProvider, TraceResult};
-use crate::{trace, trace::TracerProvider, Context, KeyValue};
+use crate::{
+    trace,
+    trace::{tracer_config, TracerConfig, TracerProvider},
+    Context, KeyValue,
+};
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
@@ -164,11 +168,7 @@ where
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub trait GenericTracerProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
-    fn get_tracer_boxed(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-    ) -> Box<dyn GenericTracer + Send + Sync>;
+    fn get_tracer_boxed(&self, config: &TracerConfig) -> Box<dyn GenericTracer + Send + Sync>;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;
@@ -181,12 +181,8 @@ where
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-    ) -> Box<dyn GenericTracer + Send + Sync> {
-        Box::new(self.get_tracer(name, version))
+    fn get_tracer_boxed(&self, config: &TracerConfig) -> Box<dyn GenericTracer + Send + Sync> {
+        Box::new(self.get_tracer(config))
     }
 
     fn force_flush(&self) -> Vec<TraceResult<()>> {
@@ -222,8 +218,8 @@ impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
-        BoxedTracer(self.provider.get_tracer_boxed(name, version))
+    fn get_tracer(&self, config: &TracerConfig) -> Self::Tracer {
+        BoxedTracer(self.provider.get_tracer_boxed(config))
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -257,7 +253,8 @@ pub fn tracer_provider() -> GlobalTracerProvider {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, None)
+    let config = tracer_config().with_name(name);
+    tracer_provider().get_tracer(&config)
 }
 
 /// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalTracerProvider`]
@@ -267,7 +264,8 @@ pub fn tracer(name: &'static str) -> BoxedTracer {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, Some(version))
+    let config = tracer_config().with_name(name).with_version(version);
+    tracer_provider().get_tracer(&config)
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
@@ -407,7 +405,7 @@ mod tests {
     impl TracerProvider for TestTracerProvider {
         type Tracer = NoopTracer;
 
-        fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+        fn get_tracer(&self, _config: &TracerConfig) -> Self::Tracer {
             NoopTracer::default()
         }
 

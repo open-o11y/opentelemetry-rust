@@ -146,7 +146,11 @@
 #![cfg_attr(docsrs, feature(doc_cfg), deny(broken_intra_doc_links))]
 #![cfg_attr(test, deny(warnings))]
 
-use opentelemetry::{global, sdk, sdk::trace::TraceRuntime, trace::TracerProvider};
+use opentelemetry::{
+    global, sdk,
+    sdk::trace::TraceRuntime,
+    trace::{tracer_config, TracerProvider},
+};
 
 #[cfg(any(feature = "grpc-sys", feature = "http-proto"))]
 use std::collections::HashMap;
@@ -579,7 +583,10 @@ fn build_simple_with_exporter(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
+    let config = tracer_config()
+        .with_name("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"));
+    let tracer = provider.get_tracer(&config);
     let _ = global::set_tracer_provider(provider);
     tracer
 }
@@ -595,7 +602,10 @@ fn build_batch_with_exporter<R: TraceRuntime>(
         provider_builder = provider_builder.with_config(config);
     }
     let provider = provider_builder.build();
-    let tracer = provider.get_tracer("opentelemetry-otlp", Some(env!("CARGO_PKG_VERSION")));
+    let config = tracer_config()
+        .with_name("opentelemetry-otlp")
+        .with_version(env!("CARGO_PKG_VERSION"));
+    let tracer = provider.get_tracer(&config);
     let _ = global::set_tracer_provider(provider);
     tracer
 }

@@ -26,7 +26,7 @@ use opentelemetry::{
     global, sdk,
     sdk::export::trace,
     sdk::trace::TraceRuntime,
-    trace::{Event, Link, SpanKind, StatusCode, TracerProvider},
+    trace::{tracer_config, Event, Link, SpanKind, StatusCode, TracerProvider},
     Key, KeyValue,
 };
 #[cfg(feature = "collector_client")]
@@ -260,8 +260,10 @@ impl PipelineBuilder {
     /// Install a Jaeger pipeline with a simple span processor.
     pub fn install_simple(self) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_simple()?;
-        let tracer =
-            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let config = tracer_config()
+            .with_name("opentelemetry-jaeger")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = tracer_provider.get_tracer(&config);
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }
@@ -272,8 +274,10 @@ impl PipelineBuilder {
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
         let tracer_provider = self.build_batch(runtime)?;
-        let tracer =
-            tracer_provider.get_tracer("opentelemetry-jaeger", Some(env!("CARGO_PKG_VERSION")));
+        let config = tracer_config()
+            .with_name("opentelemetry-jaeger")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = tracer_provider.get_tracer(&config);
         let _ = global::set_tracer_provider(tracer_provider);
         Ok(tracer)
     }

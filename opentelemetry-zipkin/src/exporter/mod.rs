@@ -8,7 +8,7 @@ use opentelemetry::{
     global, sdk,
     sdk::export::{trace, ExportError},
     sdk::trace::TraceRuntime,
-    trace::{TraceError, TracerProvider},
+    trace::{tracer_config, TraceError, TracerProvider},
 };
 use opentelemetry_http::HttpClient;
 use std::net::SocketAddr;
@@ -112,7 +112,10 @@ impl ZipkinPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let t_config = tracer_config()
+            .with_name("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&t_config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
@@ -131,7 +134,10 @@ impl ZipkinPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let t_config = tracer_config()
+            .with_name("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&t_config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
