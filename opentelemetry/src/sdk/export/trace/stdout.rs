@@ -33,7 +33,7 @@ use crate::{
         trace::{ExportResult, SpanData, SpanExporter},
         ExportError,
     },
-    trace::TracerProvider,
+    trace::{tracer_config, TracerProvider},
 };
 use async_trait::async_trait;
 use std::fmt::Debug;
@@ -100,7 +100,10 @@ where
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
+        let config = tracer_config()
+            .with_name("opentelemetry")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&config);
         let _ = global::set_tracer_provider(provider);
 
         tracer

@@ -126,14 +126,14 @@ pub trait TraceContextExt {
     /// ```
     /// use opentelemetry::{
     ///     sdk::trace as sdktrace,
-    ///     trace::{SpanContext, TraceContextExt, Tracer, TracerProvider},
+    ///     trace::{SpanContext, TraceContextExt, Tracer, TracerProvider, tracer_config},
     ///     Context,
     /// };
     ///
     /// // returns a reference to an empty span by default
     /// assert_eq!(Context::current().span().span_context(), &SpanContext::empty_context());
-    ///
-    /// sdktrace::TracerProvider::default().get_tracer("my-component", None).in_span("my-span", |cx| {
+    /// let example_config = tracer_config().with_name("my-component");
+    /// sdktrace::TracerProvider::default().get_tracer(&example_config).in_span("my-span", |cx| {
     ///     // Returns a reference to the current span if set
     ///     assert_ne!(cx.span().span_context(), &SpanContext::empty_context());
     /// });

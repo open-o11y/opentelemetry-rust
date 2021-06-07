@@ -7,11 +7,11 @@ pub use model::Error;
 use async_trait::async_trait;
 use http::{Method, Request, Uri};
 use itertools::Itertools;
-use opentelemetry::runtime::Runtime;
 use opentelemetry::sdk::export::trace;
 use opentelemetry::sdk::export::trace::SpanData;
-use opentelemetry::trace::TraceError;
-use opentelemetry::{global, sdk, trace::TracerProvider};
+use opentelemetry::sdk::trace::TraceRuntime;
+use opentelemetry::trace::{tracer_config, TraceError, TracerProvider};
+use opentelemetry::{global, sdk};
 use opentelemetry_http::{HttpClient, ResponseExt};
 
 /// Default Datadog collector endpoint
@@ -120,14 +120,17 @@ impl DatadogPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let config = tracer_config()
+            .with_name("opentelemetry-datadog")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
 
     /// Install the Datadog trace exporter pipeline using a batch span processor with the specified
     /// runtime.
-    pub fn install_batch<R: Runtime>(
+    pub fn install_batch<R: TraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
@@ -139,7 +142,10 @@ impl DatadogPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-datadog", Some(env!("CARGO_PKG_VERSION")));
+        let config = tracer_config()
+            .with_name("opentelemetry-datadog")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }

@@ -4,7 +4,7 @@ use opentelemetry::{
         export::trace::{ExportResult, SpanData, SpanExporter},
         trace as sdktrace,
     },
-    trace::{Span, Tracer, TracerProvider},
+    trace::{tracer_config, Span, Tracer, TracerProvider},
     Key, KeyValue,
 };
 
@@ -115,7 +115,8 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
             .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOn))
             .with_simple_exporter(VoidExporter)
             .build();
-        let always_sample = provider.get_tracer("always-sample", None);
+        let config = tracer_config().with_name("always-sample");
+        let always_sample = provider.get_tracer(&config);
 
         b.iter(|| f(&always_sample));
     });
@@ -125,7 +126,8 @@ fn trace_benchmark_group<F: Fn(&sdktrace::Tracer)>(c: &mut Criterion, name: &str
             .with_config(sdktrace::config().with_sampler(sdktrace::Sampler::AlwaysOff))
             .with_simple_exporter(VoidExporter)
             .build();
-        let never_sample = provider.get_tracer("never-sample", None);
+        let config = tracer_config().with_name("never-sample");
+        let never_sample = provider.get_tracer(&config);
         b.iter(|| f(&never_sample));
     });
 

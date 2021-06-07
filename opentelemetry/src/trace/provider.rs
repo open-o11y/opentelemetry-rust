@@ -22,6 +22,33 @@
 use crate::trace::{TraceResult, Tracer};
 use std::fmt;
 
+/// A struct which contains parameters to pass to `TracerProvider`'s `get_tracer` method
+#[derive(Debug, Default)]
+#[non_exhaustive]
+pub struct TracerConfig {
+    /// The name of the instrumentation library, e.g. `io.opentelemetry.contrib.mongodb`
+    pub name: &'static str,
+    /// The version of the instrumentation library, e.g. 1.0.0
+    pub version: Option<&'static str>,
+}
+
+impl TracerConfig {
+    /// Specify the name of the `Tracer`
+    pub fn with_name(mut self, name: &'static str) -> Self {
+        self.name = name;
+        self
+    }
+    /// Specify the version of the `Tracer`
+    pub fn with_version(mut self, version: &'static str) -> Self {
+        self.version = Some(version);
+        self
+    }
+}
+/// Default `Tracer` configuration
+pub fn tracer_config() -> TracerConfig {
+    TracerConfig::default()
+}
+
 /// An interface to create `Tracer` instances.
 pub trait TracerProvider: fmt::Debug + 'static {
     /// The `Tracer` type that this `TracerProvider` will return.
@@ -29,7 +56,7 @@ pub trait TracerProvider: fmt::Debug + 'static {
 
     /// Creates a named tracer instance of `Self::Tracer`.
     /// If the name is an empty string then provider uses default name.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer;
+    fn get_tracer(&self, config: &TracerConfig) -> Self::Tracer;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;

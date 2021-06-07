@@ -20,7 +20,7 @@ use std::collections::HashSet;
 /// use opentelemetry::{
 ///     baggage::BaggageExt,
 ///     propagation::TextMapPropagator,
-///     trace::{TraceContextExt, Tracer, TracerProvider},
+///     trace::{TraceContextExt, Tracer, TracerProvider, tracer_config},
 ///     Context, KeyValue,
 /// };
 /// use opentelemetry::sdk::propagation::{
@@ -43,8 +43,9 @@ use std::collections::HashSet;
 /// let mut injector = HashMap::new();
 ///
 /// // And a given span
+/// let example_config = tracer_config().with_name("example-component");
 /// let example_span = sdktrace::TracerProvider::default()
-///     .get_tracer("example-component", None)
+///     .get_tracer(&example_config)
 ///     .start("span-name");
 ///
 /// // with the current context, call inject to add the headers

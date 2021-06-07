@@ -5,11 +5,10 @@ use async_trait::async_trait;
 use http::Uri;
 use model::endpoint::Endpoint;
 use opentelemetry::{
-    global,
-    runtime::Runtime,
-    sdk,
+    global, sdk,
     sdk::export::{trace, ExportError},
-    trace::{TraceError, TracerProvider},
+    sdk::trace::TraceRuntime,
+    trace::{tracer_config, TraceError, TracerProvider},
 };
 use opentelemetry_http::HttpClient;
 use std::net::SocketAddr;
@@ -113,14 +112,17 @@ impl ZipkinPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let t_config = tracer_config()
+            .with_name("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&t_config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }
 
     /// Install the Zipkin trace exporter pipeline with a batch span processor using the specified
     /// runtime.
-    pub fn install_batch<R: Runtime>(
+    pub fn install_batch<R: TraceRuntime>(
         mut self,
         runtime: R,
     ) -> Result<sdk::trace::Tracer, TraceError> {
@@ -132,7 +134,10 @@ impl ZipkinPipelineBuilder {
             provider_builder = provider_builder.with_config(config);
         }
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-zipkin", Some(env!("CARGO_PKG_VERSION")));
+        let t_config = tracer_config()
+            .with_name("opentelemetry-zipkin")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&t_config);
         let _ = global::set_tracer_provider(provider);
         Ok(tracer)
     }

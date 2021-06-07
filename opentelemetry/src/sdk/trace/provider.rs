@@ -8,10 +8,10 @@
 //! propagators) are provided by the `TracerProvider`. `Tracer` instances do
 //! not duplicate this data to avoid that different `Tracer` instances
 //! of the `TracerProvider` have different versions of these data.
+use crate::sdk::trace::runtime::TraceRuntime;
 use crate::trace::TraceResult;
 use crate::{
     global,
-    runtime::Runtime,
     sdk::{self, export::trace::SpanExporter, trace::SpanProcessor},
 };
 use std::sync::Arc;
@@ -75,7 +75,9 @@ impl crate::trace::TracerProvider for TracerProvider {
     type Tracer = sdk::trace::Tracer;
 
     /// Find or create `Tracer` instance by name.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
+    fn get_tracer(&self, config: &crate::trace::TracerConfig) -> Self::Tracer {
+        let name = config.name;
+        let version = config.version;
         // Use default value if name is invalid empty string
         let component_name = if name.is_empty() {
             DEFAULT_COMPONENT_NAME
@@ -115,7 +117,7 @@ impl Builder {
     }
 
     /// The `SpanExporter` setup using a default `BatchSpanProcessor` that this provider should use.
-    pub fn with_batch_exporter<T: SpanExporter + 'static, R: Runtime>(
+    pub fn with_batch_exporter<T: SpanExporter + 'static, R: TraceRuntime>(
         self,
         exporter: T,
         runtime: R,

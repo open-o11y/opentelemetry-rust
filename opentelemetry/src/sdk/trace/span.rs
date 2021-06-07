@@ -220,13 +220,16 @@ mod tests {
         DEFAULT_MAX_ATTRIBUTES_PER_EVENT, DEFAULT_MAX_ATTRIBUTES_PER_LINK,
     };
     use crate::trace::{Link, NoopSpanExporter, TraceId, Tracer};
-    use crate::{core::KeyValue, trace::Span as _, trace::TracerProvider};
+    use crate::{core::KeyValue, trace::tracer_config, trace::Span as _, trace::TracerProvider};
     use std::time::Duration;
 
     fn init() -> (sdk::trace::Tracer, SpanData) {
         let provider = sdk::trace::TracerProvider::default();
         let config = provider.config();
-        let tracer = provider.get_tracer("opentelemetry", Some(env!("CARGO_PKG_VERSION")));
+        let t_config = tracer_config()
+            .with_name("opentelemetry")
+            .with_version(env!("CARGO_PKG_VERSION"));
+        let tracer = provider.get_tracer(&t_config);
         let data = SpanData {
             parent_span_id: SpanId::from_u64(0),
             span_kind: trace::SpanKind::Internal,
@@ -485,7 +488,8 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-test", None);
+        let config = tracer_config().with_name("opentelemetry-test");
+        let tracer = provider.get_tracer(&config);
 
         let mut event1 = Event::with_name("test event");
         for i in 0..(DEFAULT_MAX_ATTRIBUTES_PER_EVENT * 2) {
@@ -519,7 +523,8 @@ mod tests {
         let exporter = NoopSpanExporter::new();
         let provider_builder = sdk::trace::TracerProvider::builder().with_simple_exporter(exporter);
         let provider = provider_builder.build();
-        let tracer = provider.get_tracer("opentelemetry-test", None);
+        let config = tracer_config().with_name("opentelemetry-test");
+        let tracer = provider.get_tracer(&config);
 
         let mut link = Link::new(
             SpanContext::new(

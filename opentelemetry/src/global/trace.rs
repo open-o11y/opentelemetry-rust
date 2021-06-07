@@ -1,6 +1,10 @@
 use crate::global::handle_error;
 use crate::trace::{NoopTracerProvider, TraceResult};
-use crate::{trace, trace::TracerProvider, Context, KeyValue};
+use crate::{
+    trace,
+    trace::{tracer_config, TracerConfig, TracerProvider},
+    Context, KeyValue,
+};
 use std::borrow::Cow;
 use std::fmt;
 use std::mem;
@@ -164,11 +168,7 @@ where
 /// [`GlobalTracerProvider`]: crate::global::GlobalTracerProvider
 pub trait GenericTracerProvider: fmt::Debug + 'static {
     /// Creates a named tracer instance that is a trait object through the underlying `TracerProvider`.
-    fn get_tracer_boxed(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-    ) -> Box<dyn GenericTracer + Send + Sync>;
+    fn get_tracer_boxed(&self, config: &TracerConfig) -> Box<dyn GenericTracer + Send + Sync>;
 
     /// Force flush all remaining spans in span processors and return results.
     fn force_flush(&self) -> Vec<TraceResult<()>>;
@@ -181,12 +181,8 @@ where
     P: trace::TracerProvider<Tracer = T>,
 {
     /// Return a boxed generic tracer
-    fn get_tracer_boxed(
-        &self,
-        name: &'static str,
-        version: Option<&'static str>,
-    ) -> Box<dyn GenericTracer + Send + Sync> {
-        Box::new(self.get_tracer(name, version))
+    fn get_tracer_boxed(&self, config: &TracerConfig) -> Box<dyn GenericTracer + Send + Sync> {
+        Box::new(self.get_tracer(config))
     }
 
     fn force_flush(&self) -> Vec<TraceResult<()>> {
@@ -222,8 +218,8 @@ impl trace::TracerProvider for GlobalTracerProvider {
     type Tracer = BoxedTracer;
 
     /// Find or create a named tracer using the global provider.
-    fn get_tracer(&self, name: &'static str, version: Option<&'static str>) -> Self::Tracer {
-        BoxedTracer(self.provider.get_tracer_boxed(name, version))
+    fn get_tracer(&self, config: &TracerConfig) -> Self::Tracer {
+        BoxedTracer(self.provider.get_tracer_boxed(config))
     }
 
     /// Force flush all remaining spans in span processors and return results.
@@ -257,7 +253,8 @@ pub fn tracer_provider() -> GlobalTracerProvider {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer(name: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, None)
+    let config = tracer_config().with_name(name);
+    tracer_provider().get_tracer(&config)
 }
 
 /// Creates a named instance of [`Tracer`] with version info via the configured [`GlobalTracerProvider`]
@@ -267,7 +264,8 @@ pub fn tracer(name: &'static str) -> BoxedTracer {
 ///
 /// [`Tracer`]: crate::trace::Tracer
 pub fn tracer_with_version(name: &'static str, version: &'static str) -> BoxedTracer {
-    tracer_provider().get_tracer(name, Some(version))
+    let config = tracer_config().with_name(name).with_version(version);
+    tracer_provider().get_tracer(&config)
 }
 
 /// Sets the given [`TracerProvider`] instance as the current global provider.
@@ -328,10 +326,11 @@ pub fn force_flush_tracer_provider() {
 // threads Use cargo test -- --ignored --test-threads=1 to run those tests.
 mod tests {
     use super::*;
-    use crate::{
-        runtime::{self, Runtime},
-        trace::{NoopTracer, Tracer},
-    };
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+    use crate::runtime;
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+    use crate::sdk::trace::TraceRuntime;
+    use crate::trace::{NoopTracer, Tracer};
     use std::{
         fmt::Debug,
         io::Write,
@@ -406,7 +405,7 @@ mod tests {
     impl TracerProvider for TestTracerProvider {
         type Tracer = NoopTracer;
 
-        fn get_tracer(&self, _name: &'static str, _version: Option<&'static str>) -> Self::Tracer {
+        fn get_tracer(&self, _config: &TracerConfig) -> Self::Tracer {
             NoopTracer::default()
         }
 
@@ -479,7 +478,8 @@ mod tests {
         assert!(second_resp.contains("thread 2"));
     }
 
-    fn build_batch_tracer_provider<R: Runtime>(
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+    fn build_batch_tracer_provider<R: TraceRuntime>(
         assert_writer: AssertWriter,
         runtime: R,
     ) -> crate::sdk::trace::TracerProvider {
@@ -500,7 +500,8 @@ mod tests {
             .build()
     }
 
-    async fn test_set_provider_in_tokio<R: Runtime>(runtime: R) -> AssertWriter {
+    #[cfg(any(feature = "rt-tokio", feature = "rt-tokio-current-thread"))]
+    async fn test_set_provider_in_tokio<R: TraceRuntime>(runtime: R) -> AssertWriter {
         let buffer = AssertWriter::new();
         let _ = set_tracer_provider(build_batch_tracer_provider(buffer.clone(), runtime));
         let tracer = tracer("opentelemetery");
@@ -528,6 +529,7 @@ mod tests {
     // Test if the multiple thread tokio runtime could exit successfully when not force flushing spans
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[ignore = "requires --test-threads=1"]
+    #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_multiple_thread_tokio() {
         let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
         assert_eq!(assert_writer.len(), 0);
@@ -536,6 +538,7 @@ mod tests {
     // Test if the multiple thread tokio runtime could exit successfully when force flushing spans
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[ignore = "requires --test-threads=1"]
+    #[cfg(feature = "rt-tokio")]
     async fn test_set_provider_multiple_thread_tokio_shutdown() {
         let assert_writer = test_set_provider_in_tokio(runtime::Tokio).await;
         shutdown_tracer_provider();
@@ -561,6 +564,7 @@ mod tests {
     // Test if the single thread tokio runtime could exit successfully when not force flushing spans
     #[tokio::test]
     #[ignore = "requires --test-threads=1"]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_set_provider_single_thread_tokio() {
         let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
         assert_eq!(assert_writer.len(), 0)
@@ -569,6 +573,7 @@ mod tests {
     // Test if the single thread tokio runtime could exit successfully when force flushing spans.
     #[tokio::test]
     #[ignore = "requires --test-threads=1"]
+    #[cfg(feature = "rt-tokio-current-thread")]
     async fn test_set_provider_single_thread_tokio_shutdown() {
         let assert_writer = test_set_provider_in_tokio(runtime::TokioCurrentThread).await;
         shutdown_tracer_provider();
